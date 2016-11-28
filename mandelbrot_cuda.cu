@@ -35,8 +35,8 @@ __global__ void mandel(
     int *d_out, float x0, float y0, float d_dx, float d_dy,
     int height, int width, int count)
 {
-    int i = blockIdx.y * blockDim.y + threadIdx.y;
-    int j = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = blockIdx.x;
+    int j = threadIdx.x;
 
     if (i >= height || j >= width) return;
 
