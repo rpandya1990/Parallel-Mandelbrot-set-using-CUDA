@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
         double startTime = CycleTimer::currentSeconds();
         mandelbrotSerial(x0, y0, x1, y1, width, height, 0, height, maxIterations, output_serial);
         double endTime = CycleTimer::currentSeconds();
-        minSerial = std:min(minSerial, endTime - startTime);
+        minSerial = std::min(minSerial, endTime - startTime);
     }
 
     printf("[mandelbrot serial]:\t\t[%.3f] ms\n", minSerial * 1000);
