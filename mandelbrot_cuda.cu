@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <string.h>
+#include <cmath>
 
 #include "CycleTimer.h"
 
@@ -21,7 +22,7 @@ int verifyResult (int *gold, int *result, int width, int height) {
     int count = 0;
     for (i = 0; i < height; i++) {
         for (j = 0; j < width; j++) {
-            if (abs(gold[i * width + j] != result[i * width + j]) > 15) {
+            if (abs(gold[i * width + j] - result[i * width + j]) > 15) {
                 printf ("Mismatch : [%d][%d], Expected : %d, Actual : %d\n",i, j, result[i * width + j], gold[i * width + j]);
                 count++;
             }
@@ -31,7 +32,7 @@ int verifyResult (int *gold, int *result, int width, int height) {
 }
 
 __global__ void mandel(
-    int *d_out, float x0, float y0, float d_dx, float d_dy, 
+    int *d_out, float x0, float y0, float d_dx, float d_dy,
     int height, int width, int count)
 {
     int i = blockIdx.y * blockDim.y + threadIdx.y;
@@ -114,7 +115,7 @@ int main(int argc, char** argv) {
     int *output_cuda = new int[width*height];
     memset(output_cuda, 0, width * height * sizeof(int));
     double minCuda = 1e30;
-    for (i = 0; i < 3; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         double startTime = CycleTimer::currentSeconds();
         mandelbrotCuda(x0, y0, x1, y1, width, height, maxIterations, output_cuda);
