@@ -1,0 +1,66 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Untitled Document.md</title><style></style></head><body id="preview">
+<h1><a id="Raghav_Pandya__Assignment_4_0"></a>Raghav Pandya - Assignment 4</h1>
+<h3><a id="1__GPU_data_as_input_Vs_Element_wise_operation_4"></a>1.  GPU data as input Vs Element wise operation</h3>
+<p>GPU data as input: The data (array) is initialized inside GPU array and thus there is no cost associated with transferring data from CPU memory to GPU memory. Also the algorithm is 23X faster compared to serial implementation.<br>
+VS<br>
+Element wise operation: As for every pixel same algorithm is followed to calculate the color based on number of iterations till the magnitude of the complex number is within 2.<br>
+We seperate a kernel function and every thread works on a pixel in parallel.<br>
+This approach is much faster compared to previous operation as less number of GPU operations are required and it is much faster (200X) compared to eh serial implementation</p>
+<h3><a id="2_Mandelbrot_set_implementation_using_CUDA_11"></a>2. Mandelbrot set implementation using CUDA</h3>
+<p>We can parallelize the part where pixel color is caluclated based on the number of iteration taken by an element to diverge above magnitude 2.</p>
+<p>First we allocate the memory on GPU for output image:</p>
+<pre><code>cudaMalloc((void**) &amp;d_out, ARRAY_BYTES); 
+</code></pre>
+<p>Then we launch the kernel with number of threads equal to the number of pixels as every threads works on a single pixel</p>
+<pre><code>mandel&lt;&lt;&lt;dim3(width), dim3(height)&gt;&gt;&gt;(d_out, x0, y0, dx, dy, height, width, maxIterations);
+</code></pre>
+<p>Finally we copy back the output image from the GPU to CPU</p>
+<pre><code>cudaMemcpy(output, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
+</code></pre>
+<p>The kernel function looks like:</p>
+<pre><code>__global__ void mandel(
+    int *d_out, float x0, float y0, float d_dx, float d_dy,
+    int height, int width, int count)
+{
+    int i = blockIdx.x;
+    int j = threadIdx.x;
+
+    if (i &gt;= height || j &gt;= width) return;
+
+    int index = (j * width + i);
+
+    float c_re = x0 + i * d_dx;
+    float c_im = y0 + j * d_dy;
+    float z_im = c_im;
+    float z_re = c_re;
+    float new_re, new_im;
+    int k = 0;
+
+    for (; k &lt; count; ++k)
+    {
+        if (z_re * z_re + z_im * z_im &gt; 4.f)
+            break;
+
+        new_re = z_re*z_re - z_im*z_im;
+        new_im = 2.f * z_re * z_im;
+        z_re = c_re + new_re;
+        z_im = c_im + new_im;
+    }
+
+    d_out[index] = k;
+}
+</code></pre>
+<p><a href="https://github.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA">Source Code</a></p>
+<h3><a id="Analysis_68"></a>Analysis</h3>
+<p><img src="https://raw.githubusercontent.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA/master/Images/Analysis.png" alt="General"></p>
+<h3><a id="Charts_72"></a>Charts</h3>
+<p>Time taken by CUDA implementation:</p>
+<p><img src="https://raw.githubusercontent.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA/master/Images/Screen%20Shot%202016-11-28%20at%209.02.25%20PM.png" alt="Parallel"></p>
+<p>CUDA speedup comapred to serial implementation:</p>
+<p><img src="https://raw.githubusercontent.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA/master/Images/Graph%202.png" alt="Speedup"></p>
+<h3><a id="Running_the_code_83"></a>Running the code</h3>
+<p>To run the Parallel CUDA Mandelbrot set on ELF(Assuming CUDA has been installed):</p>
+<pre><code class="language-sh">$ nvcc mandelbrot_cuda.cu mandelbrotSerial.cpp ppm.cpp tasksys.cpp
+</code></pre>
+
+</body></html>
