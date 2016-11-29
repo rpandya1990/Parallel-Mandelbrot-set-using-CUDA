@@ -1,15 +1,4 @@
-# Raghav Pandya - Assignment 4
-
-
-
-### 1.  
-GPU data as input: The data (array) is initialized inside GPU array and thus there is no cost associated with transferring data from CPU memory to GPU memory. Also the algorithm is 23X faster compared to serial implementation.
-VS
-Element wise operation: As for every pixel same algorithm is followed to calculate the color based on number of iterations till the magnitude of the complex number is within 2.
-We seperate a kernel function and every thread works on a pixel in parallel.
-This approach is much faster compared to previous operation as less number of GPU operations are required and it is much faster (200X) compared to eh serial implementation
-
- ### 2. Mandelbrot set implementation using CUDA
+# Mandelbrot set implementation using CUDA
  
  We can parallelize the part where pixel color is caluclated based on the number of iteration taken by an element to diverge above magnitude 2.
  
@@ -68,17 +57,17 @@ __global__ void mandel(
 
 ### Analysis
 
-![General](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%206.png)
-
-![Correctness](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%207.png)
+![General](https://raw.githubusercontent.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA/master/Images/Analysis.png)
 
 ### Charts
+Time taken by CUDA implementation:
 
-![SerialvsParallel](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%201.png)
+![Parallel](https://raw.githubusercontent.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA/master/Images/Screen%20Shot%202016-11-28%20at%209.02.25%20PM.png)
 
-![StrongScaling](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%202.png)
+CUDA speedup comapred to serial implementation: 
 
-![Correctness](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%203.png)
+![Speedup](https://raw.githubusercontent.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA/master/Images/Graph%202.png)
+
 
 
 ### Running the code
