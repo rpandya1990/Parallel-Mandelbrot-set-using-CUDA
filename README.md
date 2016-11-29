@@ -1,111 +1,70 @@
-Parallel CUDA implementation for Mandelbrot set
-
-### Identifying Parallelism
-
-  - Color for every pixel can be calculated in parallel as it is independent operation
+# Raghav Pandya - Assignment 4
 
 
-We can observe from the order of computaions for different elements of the matrix that a wave pattern exists. All elements in a single diagonal can be computed parallely but the computation of diagonals is sequential as next diagonal depends on the values from previous values. 
 
-See the below figure to get the idea.
+### 1.  
+GPU data as input: The data (array) is initialized inside GPU array and thus there is no cost associated with transferring data from CPU memory to GPU memory. Also the algorithm is 23X faster compared to serial implementation.
+VS
+Element wise operation: As for every pixel same algorithm is followed to calculate the color based on number of iterations till the magnitude of the complex number is within 2.
+We seperate a kernel function and every thread works on a pixel in parallel.
+This approach is much faster compared to previous operation as less number of GPU operations are required and it is much faster (200X) compared to eh serial implementation
 
-
-![Gauss Siedel Waves](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%204.png)
-
-
-> Blue lines represent the diagonals
-> Elements in the diagonal can be computed parallely
-> Each diagonal should wait on the completion for diagonals on it's left
+ ### 2. Mandelbrot set implementation using CUDA
  
- ```
- for (int k = 1; k <= diagonals; ++k)
-    { 
-      // printf("Diagonal: %d\n", k);
-      #pragma omp parallel for num_threads(THREAD_COUNT) private(tmp, i, j) reduction(+:diff)
-      for (i = (k <= n ? 1 : (k - n + 1)); i <= k; i++)
-        {   
-          if(i <= n)
-          {         
-            j = k + 1 - i;
-            // printf("Thread: %d on (%d, %d)\n", omp_get_thread_num(), i, j);
-            tmp = A[i][j];
-            A[i][j] = 0.2*(A[i][j] + A[i][j-1] + A[i-1][j] + A[i][j+1] + A[i+1][j]);
-            diff += fabs(A[i][j] - tmp);
-          }
-        }     
-    }
+ We can parallelize the part where pixel color is caluclated based on the number of iteration taken by an element to diverge above magnitude 2.
+ 
+ First we allocate the memory on GPU for output image:
+ 
+```
+cudaMalloc((void**) &d_out, ARRAY_BYTES); 
+```
+Then we launch the kernel with number of threads equal to the number of pixels as every threads works on a single pixel
+
+```
+mandel<<<dim3(width), dim3(height)>>>(d_out, x0, y0, dx, dy, height, width, maxIterations);
+```
+Finally we copy back the output image from the GPU to CPU
+```
+cudaMemcpy(output, d_out, ARRAY_BYTES, cudaMemcpyDeviceToHost);
 ```
 
-The outer loop iterates over the diagonals sequentially and the inner loop calculates the elements on a particular diagonal.
-
-We achieve the parallelism with :
+The kernel function looks like:
 ```
-#pragma omp parallel for num_threads(THREAD_COUNT) private(tmp, i, j) reduction(+:diff)
-```
-We can specify the number of threads to be used for computation and workload is equally distributed among threads. We also use the```reduction(+:diff)``` directive which instructs threads to accumalate the difference locally and then combine at the end when thread operations are done. This improves the parallelism.
+__global__ void mandel(
+    int *d_out, float x0, float y0, float d_dx, float d_dy,
+    int height, int width, int count)
+{
+    int i = blockIdx.x;
+    int j = threadIdx.x;
 
-Advantages: 
+    if (i >= height || j >= width) return;
 
-- Easy and Effective parallelism 
-- Scaling: As the workload is distributed equally, it scales well
-- Correctness: Exactly same result as the serial approach
+    int index = (j * width + i);
 
-Disadvantages:
+    float c_re = x0 + i * d_dx;
+    float c_im = y0 + j * d_dy;
+    float z_im = c_im;
+    float z_re = c_re;
+    float new_re, new_im;
+    int k = 0;
 
-- Frequent synchronizations between diagonals equal to " 2N - 1 "
-- Not much parallelism in initial and final diagonals
-
-### Red and black coloring approach
-
-We slightly change the algorithm with the domain knowledge that an approximate solution is acceptable for applications using Gauss Siedel.
-
-Key Ideas:
-- Change the order in which cells are updated
-- New algorithm converges in same(approximate) number of iterations
-- Change is acceptable for applications utilizing the Gauss Siedel method
-
-We split the elements into red and black color scheme such that no red element depends on black and vice versa
-![Red Black color scheme](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%205.png)
-
-Firstly, red cells are computed in parallely and then the black cells are computed. We repeat the process until we acheive the desired convergence.
-```
-#pragma omp parallel num_threads(THREAD_COUNT) private(tmp, i, j) reduction(+:diff)
+    for (; k < count; ++k)
     {
-      #pragma omp for
-      for (i = 1; i <= n; ++i)
-      {    
-        for (j = 1; j <= n; ++j)
-        { 
-          if ((i + j) % 2 == 1)
-          {
-            // Computation for Red Cells
-          }
-        }
-      }
-      #pragma omp barrier
+        if (z_re * z_re + z_im * z_im > 4.f)
+            break;
+
+        new_re = z_re*z_re - z_im*z_im;
+        new_im = 2.f * z_re * z_im;
+        z_re = c_re + new_re;
+        z_im = c_im + new_im;
     }
-    #pragma omp parallel num_threads(THREAD_COUNT) private(tmp, i, j) reduction(+:diff)
-    {
-      #pragma omp for
-      for (i = 1; i <= n; ++i)
-      {    
-        for (j = 1; j <= n; ++j)
-        { 
-          if ((i + j) % 2 == 0)
-          {
-            // Computation for Black Cells
-          }
-        }
-      }
-      #pragma omp barrier
+
+    d_out[index] = k;
+}
 ```
-Advantages:
 
-- Faster compared to wave approach and for smaller dataset as well
-- Uniform parallelism
+[Source Code]
 
-Disadvantages:
-- Approximate solution
 
 ### Analysis
 
@@ -121,19 +80,13 @@ Disadvantages:
 
 ![Correctness](https://raw.githubusercontent.com/rpandya1990/Gauss-seidel-Parallel-Implementation/master/images/Image%203.png)
 
-### Observation
-
-- Red black performs very well for all range of Grid size
-- Red black is the fastest
-- Wave Solver is completely accurate and the result exactly matches the Serial Implementation
-- Approximate solution given by red black solver is acceptable
 
 ### Running the code
 
-To run the Parallel CUDA Mandelbrot set on ELF:
+To run the Parallel CUDA Mandelbrot set on ELF(Assuming CUDA has been installed):
 
 ```sh
-$ salloc -p gpu --reservation gpu001 --gres=gpu:1
-$ ssh 
-$ ./wave_solver
+$ nvcc mandelbrot_cuda.cu mandelbrotSerial.cpp ppm.cpp tasksys.cpp
 ```
+
+[Source Code]: <https://github.com/rpandya1990/Parallel-Mandelbrot-set-using-CUDA>
